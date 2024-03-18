@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:video_editor/src/controller.dart';
-import 'package:video_editor/src/utils/helpers.dart';
 import 'package:video_editor/src/models/cover_data.dart';
 import 'package:video_editor/src/models/transform_data.dart';
+import 'package:video_editor/src/utils/helpers.dart';
 import 'package:video_editor/src/widgets/crop/crop_mixin.dart';
 
 class CoverViewer extends StatefulWidget {

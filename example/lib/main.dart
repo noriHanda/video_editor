@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:video_editor_example/crop_page.dart';
-import 'package:video_editor_example/export_service.dart';
-import 'package:video_editor_example/widgets/export_result.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_editor/video_editor.dart';
+import 'package:video_editor_example/crop_page.dart';
+import 'package:video_editor_example/export_service.dart';
+import 'package:video_editor_example/widgets/export_result.dart';
 
 void main() => runApp(
       MaterialApp(
@@ -238,12 +238,12 @@ class _VideoEditorState extends State<VideoEditor> {
                                   margin: const EdgeInsets.only(top: 10),
                                   child: Column(
                                     children: [
-                                      TabBar(
+                                      const TabBar(
                                         tabs: [
                                           Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.center,
-                                              children: const [
+                                              children: [
                                                 Padding(
                                                     padding: EdgeInsets.all(5),
                                                     child: Icon(
@@ -253,7 +253,7 @@ class _VideoEditorState extends State<VideoEditor> {
                                           Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.center,
-                                            children: const [
+                                            children: [
                                               Padding(
                                                   padding: EdgeInsets.all(5),
                                                   child:
