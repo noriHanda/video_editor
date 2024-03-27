@@ -99,6 +99,8 @@ class _CropGridViewerState extends State<CropGridViewer> with CropPreviewMixin {
 
   /// Update crop [Rect] after change in [_controller] such as change of aspect ratio
   void _updateRect() {
+    // Make sure the controller is initialized
+    if (!_controller.initialized) return;
     layout = _computeLayout();
     transform.value = TransformData.fromController(_controller);
     _calculatePreferedCrop();
@@ -130,6 +132,8 @@ class _CropGridViewerState extends State<CropGridViewer> with CropPreviewMixin {
   }
 
   void _scaleRect() {
+    // Make sure the controller is initialized
+    if (!_controller.initialized) return;
     layout = _computeLayout();
     rect.value = calculateCroppedRect(_controller, layout);
     transform.value =
@@ -266,6 +270,7 @@ class _CropGridViewerState extends State<CropGridViewer> with CropPreviewMixin {
 
     // update crop height or width to adjust to the selected aspect ratio
     if (aspectRatio != null) {
+      assert(aspectRatio! > 0, 'Aspect ratio must be greater than 0');
       final width = right - left;
       final height = bottom - top;
 

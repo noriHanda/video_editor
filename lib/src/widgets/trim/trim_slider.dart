@@ -83,10 +83,10 @@ class _TrimSliderState extends State<TrimSlider>
       widget.horizontalMargin + widget.controller.trimStyle.edgeWidth;
 
   late final _viewportRatio = min(
-    widget.maxViewportRatio,
-    widget.controller.videoDuration.inMilliseconds /
-        widget.controller.maxDuration.inMilliseconds,
-  );
+      widget.maxViewportRatio,
+      widget.controller.videoDuration.inMilliseconds /
+          widget.controller.maxDuration.inMilliseconds);
+
   late final _isExtendTrim = _viewportRatio > 1;
 
   // Touch detection
@@ -402,24 +402,20 @@ class _TrimSliderState extends State<TrimSlider>
 
     // if [left] and [width] params does not respect the min and max duration set in the controller
     // reduce the trimmed area to respect it
-    final Duration diff = _getDurationDiff(left, width);
+    final diff = _getDurationDiff(left, width);
     if (diff < widget.controller.minDuration ||
         diff > widget.controller.maxDuration) {
+      final rectFromMaxDuration =
+          _getRectWidthFromDuration(widget.controller.maxDuration);
+      final rectFromMinDuration =
+          _getRectWidthFromDuration(widget.controller.minDuration);
       if (_boundary == _TrimBoundaries.left) {
-        final limitLeft = left.clamp(
-            left +
-                width -
-                _getRectWidthFromDuration(widget.controller.maxDuration),
-            left +
-                width -
-                _getRectWidthFromDuration(widget.controller.minDuration));
+        final limitLeft = left.clamp(left + width - rectFromMaxDuration,
+            left + width - rectFromMinDuration);
         width += left - limitLeft;
         left = limitLeft;
       } else if (_boundary == _TrimBoundaries.right) {
-        width = width.clamp(
-          _getRectWidthFromDuration(widget.controller.minDuration),
-          _getRectWidthFromDuration(widget.controller.maxDuration),
-        );
+        width = width.clamp(rectFromMinDuration, rectFromMaxDuration);
       }
     }
 
@@ -448,7 +444,7 @@ class _TrimSliderState extends State<TrimSlider>
   //----//
 
   /// Reset the video cursor position to fit the rect
-  void _resetControllerPosition() async {
+  Future<void> _resetControllerPosition() async {
     if (_boundary == _TrimBoundaries.progress) return;
 
     // if the left side changed and overtake the current postion
@@ -457,24 +453,24 @@ class _TrimSliderState extends State<TrimSlider>
         _boundary == _TrimBoundaries.left) {
       // reset position to startTrim
       _preComputedVideoPosition = _rect.left;
-      await widget.controller.video.seekTo(widget.controller.startTrim);
+      await widget.controller.video.player.seek(widget.controller.startTrim);
     } else if (_boundary == _TrimBoundaries.right) {
       // or if the right side changed and is under the current postion, reset position to endTrim
       // substract 10 milliseconds to avoid the video to loop and to show startTrim
       _preComputedVideoPosition = _rect.right;
-      await widget.controller.video.seekTo(widget.controller.endTrim);
+      await widget.controller.video.player.seek(widget.controller.endTrim);
     }
   }
 
   /// Sets the video's current timestamp to be at the [position] on the slider
   /// If the expected position is bigger than [controller.endTrim], set it to [controller.endTrim]
-  void _controllerSeekTo(double position) async {
+  Future<void> _controllerSeekTo(double position) async {
     _preComputedVideoPosition = null;
-    final to = widget.controller.videoDuration *
+    final to = (widget.controller.videoDuration) *
         ((position + _scrollController.offset) /
             (_fullLayout.width + _horizontalMargin * 2));
-    await widget.controller.video.seekTo(
-        to > widget.controller.endTrim ? widget.controller.endTrim : to);
+    await widget.controller.video.player
+        .seek(to > widget.controller.endTrim ? widget.controller.endTrim : to);
   }
 
   void _updateControllerTrim() {
@@ -488,10 +484,10 @@ class _TrimSliderState extends State<TrimSlider>
   void _updateControllerIsTrimming(bool value) {
     if (value && widget.controller.isPlaying) {
       _isVideoPlayerHold = true;
-      widget.controller.video.pause();
+      widget.controller.video.player.pause();
     } else if (_isVideoPlayerHold) {
       _isVideoPlayerHold = false;
-      widget.controller.video.play();
+      widget.controller.video.player.play();
     }
 
     if (_boundary != _TrimBoundaries.progress) {
@@ -619,7 +615,7 @@ class _TrimSliderState extends State<TrimSlider>
               child: AnimatedBuilder(
                 animation: Listenable.merge([
                   widget.controller,
-                  widget.controller.video,
+                  widget.controller.video.notifier,
                 ]),
                 builder: (_, __) {
                   return RepaintBoundary(

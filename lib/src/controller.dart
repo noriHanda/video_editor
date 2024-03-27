@@ -1,11 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:video_editor/src/models/cover_data.dart';
 import 'package:video_editor/src/utils/helpers.dart';
 import 'package:video_editor/src/utils/thumbnails.dart';
 import 'package:video_editor/video_editor.dart';
-import 'package:video_player/video_player.dart';
 
 class VideoMinDurationError extends Error {
   final Duration minDuration;
@@ -41,6 +42,9 @@ class VideoEditorController extends ChangeNotifier {
   /// Video from [File].
   final File file;
 
+  /// Create a [Player] to control playback.
+  late final _player = Player();
+
   /// Constructs a [VideoEditorController] that edits a video from a file.
   ///
   /// The [file] argument must not be null.
@@ -53,11 +57,7 @@ class VideoEditorController extends ChangeNotifier {
     this.coverStyle = const CoverSelectionStyle(),
     this.cropStyle = const CropGridStyle(),
     TrimSliderStyle? trimStyle,
-  })  : _video = VideoPlayerController.file(File(
-          // https://github.com/flutter/flutter/issues/40429#issuecomment-549746165
-          Platform.isIOS ? Uri.encodeFull(file.path) : file.path,
-        )),
-        trimStyle = trimStyle ?? TrimSliderStyle(),
+  })  : trimStyle = trimStyle ?? const TrimSliderStyle(),
         assert(maxDuration > minDuration,
             'The maximum duration must be bigger than the minimum duration');
 
@@ -79,31 +79,36 @@ class VideoEditorController extends ChangeNotifier {
 
   Duration _trimEnd = Duration.zero;
   Duration _trimStart = Duration.zero;
-  final VideoPlayerController _video;
+  late final VideoController _video = VideoController(_player);
+
+  late Duration _totalVideoDuration;
+  late double _videoWidth;
+  late double _videoHeight;
+  late bool _isPlaying;
+  late Duration _position;
 
   // Selected cover value
   final ValueNotifier<CoverData?> _selectedCover =
       ValueNotifier<CoverData?>(null);
 
-  /// Get the [VideoPlayerController]
-  VideoPlayerController get video => _video;
+  bool initialized = false;
 
-  /// Get the [VideoPlayerController.value.initialized]
-  bool get initialized => _video.value.isInitialized;
+  /// Get the [VideoController]
+  VideoController get video => _video;
 
-  /// Get the [VideoPlayerController.value.isPlaying]
-  bool get isPlaying => _video.value.isPlaying;
+  /// Get the [Player.state.playing]
+  bool get isPlaying => _player.state.playing;
 
-  /// Get the [VideoPlayerController.value.position]
-  Duration get videoPosition => _video.value.position;
+  /// Get the [Player.state.position]
+  Duration get videoPosition => _player.state.position;
 
-  /// Get the [VideoPlayerController.value.duration]
-  Duration get videoDuration => _video.value.duration;
+  /// Get the [VideoController.player.stream.duration.first]
+  Duration get videoDuration => _totalVideoDuration;
 
-  /// Get the [VideoPlayerController.value.size]
-  Size get videoDimension => _video.value.size;
-  double get videoWidth => videoDimension.width;
-  double get videoHeight => videoDimension.height;
+  /// Get the [VideoController.rect.value.size]
+  Size get videoDimension => Size(_videoWidth, _videoHeight);
+  double get videoWidth => _videoWidth;
+  double get videoHeight => _videoHeight;
 
   /// The [minTrim] param is the minimum position of the trimmed area on the slider
   ///
@@ -202,14 +207,43 @@ class VideoEditorController extends ChangeNotifier {
   /// }, test: (e) => e is VideoMinDurationError);
   /// ```
   Future<void> initialize({double? aspectRatio}) async {
-    await _video.initialize();
+    await _player
+        .open(Media(Platform.isIOS ? Uri.encodeFull(file.path) : file.path));
+
+    // Wait for the VideoController until first video frame is drawn
+    await _video.waitUntilFirstFrameRendered;
+
+    await _video.player.setPlaylistMode(PlaylistMode.loop);
+
+    final properties = await (
+      _player.stream.duration.first,
+      _video.player.stream.width.first,
+      _video.player.stream.height.first
+    ).wait;
+
+    _totalVideoDuration = properties.$1;
+
+    // Get the video dimension. Null case can be ignored because [VideoController.waitUntilFirstFrameRendered] is called before [VideoController.stream.width] and [VideoController.stream.height]
+    _videoWidth = properties.$2!.toDouble();
+    _videoHeight = properties.$3!.toDouble();
+
+    _video.player.stream.playing.listen((isPlaying) {
+      _isPlaying = isPlaying;
+      notifyListeners();
+    });
+
+    // Update the current position of the video and make sure it stays in the trimmed time range
+    _video.player.stream.position.listen((position) {
+      _position = position;
+      if (position < _trimStart || position > _trimEnd) {
+        _video.player.seek(_trimStart);
+      }
+      notifyListeners();
+    });
 
     if (minDuration > videoDuration) {
       throw VideoMinDurationError(minDuration, videoDuration);
     }
-
-    _video.addListener(_videoListener);
-    _video.setLooping(true);
 
     // if no [maxDuration] param given, maxDuration is the videoDuration
     maxDuration = maxDuration == Duration.zero ? videoDuration : maxDuration;
@@ -226,22 +260,16 @@ class VideoEditorController extends ChangeNotifier {
     generateDefaultCoverThumbnail();
 
     notifyListeners();
+    initialized = true;
   }
 
   @override
   Future<void> dispose() async {
-    if (_video.value.isPlaying) await _video.pause();
-    _video.removeListener(_videoListener);
-    _video.dispose();
+    if (_video.player.state.playing) await _video.player.pause();
+    _video.player.dispose();
+    _player.dispose();
     _selectedCover.dispose();
     super.dispose();
-  }
-
-  void _videoListener() {
-    final position = videoPosition;
-    if (position < _trimStart || position > _trimEnd) {
-      _video.seekTo(_trimStart);
-    }
   }
 
   //----------//

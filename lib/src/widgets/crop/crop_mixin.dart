@@ -33,9 +33,14 @@ mixin CropPreviewMixin<T extends StatefulWidget> on State<T> {
     bool shouldFlipped = false,
   }) {
     if (viewerSize == Size.zero) return Size.zero;
-    final videoRatio = controller.video.value.aspectRatio;
+    final videoRatio = controller.video.rect.value?.size.aspectRatio;
     final size = Size(viewerSize.width - margin.horizontal,
         viewerSize.height - margin.vertical);
+
+    if (videoRatio == null || videoRatio <= 0) {
+      throw Exception(
+          'Video aspect ratio is $videoRatio. It must be greater than 0.');
+    }
     if (shouldFlipped) {
       return computeSizeWithRatio(videoRatio > 1 ? size.flipped : size,
               getOppositeRatio(videoRatio))

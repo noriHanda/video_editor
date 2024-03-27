@@ -3,8 +3,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:fraction/fraction.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import 'package:path/path.dart' as path;
-import 'package:video_player/video_player.dart';
 
 Future<void> _getImageDimension(File file,
     {required Function(Size) onResult}) async {
@@ -25,7 +26,8 @@ class VideoResultPopup extends StatefulWidget {
 }
 
 class _VideoResultPopupState extends State<VideoResultPopup> {
-  VideoPlayerController? _controller;
+  VideoController? _controller;
+  final Player _player = Player();
   FileImage? _fileImage;
   Size _fileDimension = Size.zero;
   late final bool _isGif =
@@ -41,12 +43,12 @@ class _VideoResultPopupState extends State<VideoResultPopup> {
         onResult: (d) => setState(() => _fileDimension = d),
       );
     } else {
-      _controller = VideoPlayerController.file(widget.video);
-      _controller?.initialize().then((_) {
-        _fileDimension = _controller?.value.size ?? Size.zero;
+      _player.open(Media(widget.video.path)).then((value) {
+        _controller = VideoController(_player);
+        _fileDimension = _controller?.rect.value?.size ?? Size.zero;
         setState(() {});
-        _controller?.play();
-        _controller?.setLooping(true);
+        _controller?.player.play();
+        _controller?.player.setPlaylistMode(PlaylistMode.loop);
       });
     }
     _fileMbSize = _fileMBSize(widget.video);
@@ -57,8 +59,8 @@ class _VideoResultPopupState extends State<VideoResultPopup> {
     if (_isGif) {
       _fileImage?.evict();
     } else {
-      _controller?.pause();
-      _controller?.dispose();
+      _controller?.player.pause();
+      _controller?.player.dispose();
     }
     super.dispose();
   }
@@ -75,8 +77,9 @@ class _VideoResultPopupState extends State<VideoResultPopup> {
               aspectRatio: _fileDimension.aspectRatio == 0
                   ? 1
                   : _fileDimension.aspectRatio,
-              child:
-                  _isGif ? Image.file(widget.video) : VideoPlayer(_controller!),
+              child: _isGif
+                  ? Image.file(widget.video)
+                  : Video(controller: _controller!),
             ),
             Positioned(
               bottom: 0,
@@ -85,7 +88,7 @@ class _VideoResultPopupState extends State<VideoResultPopup> {
                   'Video path': widget.video.path,
                   if (!_isGif)
                     'Video duration':
-                        '${((_controller?.value.duration.inMilliseconds ?? 0) / 1000).toStringAsFixed(2)}s',
+                        '${((_controller?.player.state.duration.inMilliseconds ?? 0) / 1000).toStringAsFixed(2)}s',
                   'Video ratio': Fraction.fromDouble(_fileDimension.aspectRatio)
                       .reduce()
                       .toString(),

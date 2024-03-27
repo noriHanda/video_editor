@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:video_editor/src/controller.dart';
-import 'package:video_editor/src/utils/helpers.dart';
-import 'package:video_editor/src/utils/thumbnails.dart';
 import 'package:video_editor/src/models/cover_data.dart';
 import 'package:video_editor/src/models/cover_style.dart';
 import 'package:video_editor/src/models/transform_data.dart';
+import 'package:video_editor/src/utils/helpers.dart';
+import 'package:video_editor/src/utils/thumbnails.dart';
 import 'package:video_editor/src/widgets/crop/crop_grid_painter.dart';
 import 'package:video_editor/src/widgets/image_viewer.dart';
 import 'package:video_editor/src/widgets/transform.dart';
@@ -103,9 +103,13 @@ class _CoverSelectionState extends State<CoverSelection>
 
   /// Returns the max size the layout should take with the rect value
   Size _calculateMaxLayout() {
-    final ratio = _rect.value == Rect.zero
-        ? widget.controller.video.value.aspectRatio
-        : _rect.value.size.aspectRatio;
+    final videoRatio = widget.controller.video.rect.value?.size.aspectRatio;
+    if (videoRatio == null || videoRatio <= 0) {
+      throw Exception(
+          'Video aspect ratio is $videoRatio, it must be greater than 0');
+    }
+    final ratio =
+        _rect.value == Rect.zero ? videoRatio : _rect.value.size.aspectRatio;
     return ratio < 1.0
         ? Size(widget.size * ratio, widget.size)
         : Size(widget.size, widget.size / ratio);

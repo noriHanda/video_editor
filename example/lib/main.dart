@@ -2,28 +2,34 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:video_editor/video_editor.dart';
 import 'package:video_editor_example/crop_page.dart';
 import 'package:video_editor_example/export_service.dart';
 import 'package:video_editor_example/widgets/export_result.dart';
 
-void main() => runApp(
-      MaterialApp(
-        title: 'Flutter Video Editor Demo',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.grey,
-          brightness: Brightness.dark,
-          tabBarTheme: const TabBarTheme(
-            indicator: UnderlineTabIndicator(
-              borderSide: BorderSide(color: Colors.white),
-            ),
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Necessary initialization for package:media_kit.
+  MediaKit.ensureInitialized();
+  runApp(
+    MaterialApp(
+      title: 'Flutter Video Editor Demo',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.grey,
+        brightness: Brightness.dark,
+        tabBarTheme: const TabBarTheme(
+          indicator: UnderlineTabIndicator(
+            borderSide: BorderSide(color: Colors.white),
           ),
-          dividerColor: Colors.white,
         ),
-        home: const VideoEditorExample(),
+        dividerColor: Colors.white,
       ),
-    );
+      home: const VideoEditorExample(),
+    ),
+  );
+}
 
 class VideoEditorExample extends StatefulWidget {
   const VideoEditorExample({super.key});
@@ -204,13 +210,15 @@ class _VideoEditorState extends State<VideoEditor> {
                                           CropGridViewer.preview(
                                               controller: _controller),
                                           AnimatedBuilder(
-                                            animation: _controller.video,
+                                            animation:
+                                                _controller.video.notifier,
                                             builder: (_, __) => AnimatedOpacity(
                                               opacity:
                                                   _controller.isPlaying ? 0 : 1,
                                               duration: kThemeAnimationDuration,
                                               child: GestureDetector(
-                                                onTap: _controller.video.play,
+                                                onTap: _controller
+                                                    .video.player.play,
                                                 child: Container(
                                                   width: 40,
                                                   height: 40,
@@ -226,7 +234,7 @@ class _VideoEditorState extends State<VideoEditor> {
                                                 ),
                                               ),
                                             ),
-                                          ),
+                                          )
                                         ],
                                       ),
                                       CoverViewer(controller: _controller)
@@ -386,7 +394,7 @@ class _VideoEditorState extends State<VideoEditor> {
       AnimatedBuilder(
         animation: Listenable.merge([
           _controller,
-          _controller.video,
+          _controller.video.notifier,
         ]),
         builder: (_, __) {
           final int duration = _controller.videoDuration.inSeconds;

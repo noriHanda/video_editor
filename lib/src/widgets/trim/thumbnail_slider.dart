@@ -57,6 +57,8 @@ class _ThumbnailSliderState extends State<ThumbnailSlider> {
   }
 
   void _scaleRect() {
+    // Make sure the controller is initialized
+    if (!widget.controller.initialized) return;
     _rect.value = calculateCroppedRect(widget.controller, _layout);
     _maxLayout = _calculateMaxLayout();
 
@@ -82,9 +84,15 @@ class _ThumbnailSliderState extends State<ThumbnailSlider> {
 
   /// Returns the max size the layout should take with the rect value
   Size _calculateMaxLayout() {
-    final ratio = _rect.value == Rect.zero
-        ? widget.controller.video.value.aspectRatio
-        : _rect.value.size.aspectRatio;
+    final aspectRatio = widget.controller.video.rect.value?.size.aspectRatio;
+
+    if (aspectRatio == null || aspectRatio <= 0) {
+      throw Exception(
+          'AspectRatio of VideoRect is $aspectRatio. It must be greater than 0.');
+    }
+
+    final ratio =
+        _rect.value == Rect.zero ? aspectRatio : _rect.value.size.aspectRatio;
 
     // check if the ratio is almost 1
     if (isNumberAlmost(ratio, 1)) return Size.square(widget.height);
